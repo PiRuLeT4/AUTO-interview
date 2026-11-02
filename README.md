@@ -1,7 +1,12 @@
-# AUTO-interview
 <div align="center">
 
-![image](frontend/public/logo.jpg)
+# AUTO-interview
+
+  ![image](frontend/public/logo.jpg)
+
+</div>
+
+<br/>
 
 > Practice technical and behavioral job interviews **locally** with a real-time conversational AI voice agent tailored to your resume.
 
