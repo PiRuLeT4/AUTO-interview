@@ -114,26 +114,127 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
+## How to use other LLMs or TTS/STT providers
+
+I've configured Nvidia's free LLM model: `nvidia/nemotron-3.5-bolt-e4b`, which is available on a free account on [NVIDIA Build](https://build.nvidia.com/).
+
+If you want to use your own models using your API Keys, just modify the `.env` file adding the API key, and adapt the configuration in [`backend/app/agent/bot.py`](backend/app/agent/bot.py):
+
+### 1. Changing the LLM Model / Provider
+
+In `backend/app/agent/bot.py` (around lines 83–97), you will find the LLM initialization block:
+
+```python
+# 3. LLM: NVIDIA NIM (Llama / Nemotron) or OpenAI
+if nvidia_key and not openai_key:
+    logger.info("Usando NVIDIA NIM LLM (nvidia/nemotron-3.5-bolt-e4b) para el entrevistador.")
+    llm = OpenAILLMService(
+        api_key=nvidia_key,
+        base_url="https://integrate.api.nvidia.com/v1",
+        settings=OpenAILLMService.Settings(model="nvidia/nemotron-3.5-bolt-e4b"),
+    )
+else:
+    logger.info("Usando OpenAI LLM (gpt-4o-mini) para el entrevistador.")
+    llm = OpenAILLMService(
+        api_key=openai_key,
+        settings=OpenAILLMService.Settings(model="gpt-4o-mini"),
+    )
+```
+
+#### How to switch options:
+
+- **Using a different NVIDIA NIM model (e.g. Llama 3.1 70B):**
+  Keep `NVIDIA_API_KEY` in `.env` and simply change the `model` parameter:
+  ```python
+  settings=OpenAILLMService.Settings(model="meta/llama-3.1-70b-instruct")
+  ```
+- **Using OpenAI (e.g. GPT-4o or GPT-4o-mini):**
+  Add `OPENAI_API_KEY=sk-...` to your `.env` (and leave `NVIDIA_API_KEY` empty or commented out). You can adjust the model:
+  ```python
+  settings=OpenAILLMService.Settings(model="gpt-4o")  # or "gpt-4o-mini"
+  ```
+- **Using Groq, Together AI, or a Local Ollama model:**
+  Since `OpenAILLMService` is compatible with any OpenAI-compatible API, you only need to modify `base_url` and `model`:
+  ```python
+  # Example: Groq
+  llm = OpenAILLMService(
+      api_key=os.getenv("GROQ_API_KEY"),
+      base_url="https://api.groq.com/openai/v1",
+      settings=OpenAILLMService.Settings(model="llama-3.3-70b-versatile"),
+  )
+
+  # Example: Local Ollama
+  llm = OpenAILLMService(
+      api_key="ollama",
+      base_url="http://localhost:11434/v1",
+      settings=OpenAILLMService.Settings(model="llama3.1"),
+  )
+  ```
+
+---
+
+### 2. Changing the TTS (Text-to-Speech) Provider & Voice
+
+The application supports multiple TTS providers. You can select your provider directly in `.env`:
+
+```dotenv
+# Options: deepgram, cartesia, or openai
+TTS_PROVIDER=deepgram
+```
+
+In `backend/app/agent/bot.py` (lines 99–150):
+
+- **Deepgram Aura-2 (Recommended — Free $200 Tier):**
+  Set `TTS_PROVIDER=deepgram` in `.env`.
+  - Spanish voice: `DEEPGRAM_VOICE_ID=aura-2-nestor-es` (or `aura-2-estrella-es`)
+  - English voice: `DEEPGRAM_VOICE_ID_EN=aura-2-luna-en` (or `aura-2-orion-en`)
+- **Cartesia (Ultra-low latency):**
+  Set `TTS_PROVIDER=cartesia` in `.env` and specify `CARTESIA_API_KEY` and `CARTESIA_VOICE_ID`.
+- **OpenAI TTS:**
+  Set `TTS_PROVIDER=openai` in `.env` and provide `OPENAI_API_KEY`. In `bot.py`:
+  ```python
+  tts = OpenAITTSService(api_key=openai_key, voice="alloy")  # alloy, echo, fable, onyx, nova, shimmer
+  ```
+
+---
+
+### 3. Speech-to-Text (STT)
+
+Real-time STT is powered by Deepgram Nova-2 in `backend/app/agent/bot.py` (lines 68–81):
+```python
+stt = DeepgramSTTService(
+    api_key=deepgram_key,
+    settings=DeepgramSTTService.Settings(
+        language=Language.EN if current_language == "en" else Language.ES,
+        model="nova-2",
+        smart_format=True,
+        interim_results=True,
+    ),
+)
+```
+
+---
+
 ## How to Create & Start an Interview
 
-1. **Select Language & Practice Focus**:
-   - Choose between **Español** and **English**.
-   - Choose your interview focus: **Pure Technical Concepts**, **Resume & Experience**, **System Design**, **Behavioral (STAR)**, or **Custom Topic** (e.g., Docker, PostgreSQL, Concurrency in Go).
-2. **Resume / CV (Optional for Concept Practice)**:
-   - If you want questions tailored to your experience, drag and drop your CV (**PDF** or **DOCX**).
-   - If you choose a concept practice mode, uploading a CV is completely optional.
-3. **Select or Customize the Interview Prompt**:
-   - **Standard Technical**: Balanced technical assessment on skills and concepts.
-   - **Architecture & Systems**: Focuses on system design, trade-offs, scalability, and distributed systems.
+1. **Select Language & Practice Mode**:
+   - **Language**: Choose between **Español** and **English**.
+   - **Two Distinct Practice Focuses**:
+     - **Basado en CV (Resume-Based)**: Upload your resume (**PDF** or **DOCX**) to practice questions customized to your actual projects, tech stack, and career background.
+     - **Tema Personalizado (Custom Topic)**: Practice a specific technology or concept (e.g. *Docker & Kubernetes*, *Go Concurrency*, *React 19*, *Microservices Architecture*) without uploading any CV. The CV upload is automatically omitted in this mode.
+2. **Select or Customize the Interview Prompt**:
+   - **Profesor / Mentor (Teacher / Mentor)**: Pedagogical mode that politely corrects you if you hesitate or make a mistake, explaining the correct concept in 1–2 sentences before continuing.
+   - **Standard Technical**: Balanced screening covering skills, architecture, and engineering principles.
+   - **Architecture & Systems**: Focuses on system design, trade-offs, and scalability.
    - **Algorithms & Code**: Focuses on problem-solving, logic, and complexity trade-offs.
-   - **Behavioral & Leadership**: Explores teamwork, conflict resolution, and communication using the STAR method.
-   - **Custom**: Customize the prompt completely to simulate any specific role, company, or interviewer personality.
-4. **Grant Microphone Access & Begin**:
+   - **Behavioral & Leadership**: Explores teamwork and conflict resolution using the STAR method.
+   - **Custom**: Customize the prompt completely to simulate any specific company or interviewer style.
+3. **Grant Microphone Access & Begin**:
    - Click **"Comenzar Entrevista" / "Start Interview"**.
    - Allow microphone permissions in your browser.
-   - Speak naturally with the AI interviewer just like in a real technical screening!
-5. **Dynamic Focus & Language Changes During Call**:
-   - Change your language or switch topics (e.g. from CV to backend concepts) mid-call via the control buttons.
+   - Converse naturally with the AI interviewer in real time with visual voice wave animations and live subtitles!
+4. **Dynamic Focus & Language Changes During Call**:
+   - Change your language or switch focus mode mid-call using the top control buttons.
    - End the call at any time when you finish practicing.
 
 ---
