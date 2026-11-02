@@ -1,0 +1,35 @@
+# Entornos virtuales
+.venv/
+venv/
+ENV/
+
+# Variables de entorno y credenciales
+.env
+.env.*
+!.env-example
+!.env.example
+
+# Archivos de caché de Python y uv
+__pycache__/
+*.py[cod]
+*$py.class
+.uv/
+.pytest_cache/
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# Almacenamiento local de archivos temporales
+storage/uploads/*
+!storage/uploads/.gitkeep
+
+# Logs y SO
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
